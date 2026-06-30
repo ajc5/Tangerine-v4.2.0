@@ -3,7 +3,12 @@ FROM alvrme/alpine-android:android-32-jdk11
 # Upgrade all OS packages to patch CVEs
 RUN apk upgrade --no-cache
 
-RUN apk add --update nodejs npm
+# Install Node.js 24 from Alpine repos (use -current for latest patch)
+RUN apk update && apk add nodejs-current npm
+
+# Allow legacy peer deps to handle Angular 22 + older eslint conflicts
+RUN npm config set legacy-peer-deps true
+
 # Install Cordova and other useful globals
 RUN npm update && \
     npm install -g cordova@11.0.0
@@ -106,12 +111,13 @@ RUN cd /tangerine/client/pwa-tools/updater-app && \
     npm run build && \
     cp logo.svg build/default/
 
-# Package release sources for APK and PWA.
+# Package release sources for APK and PWA (Angular 22: browser/ subdir).
 RUN cd /tangerine/client && \
-    cp -r dist/tangerine-client builds/apk/www/shell && \
+    mkdir -p builds/apk/www/shell && \
+    cp -r dist/tangerine-client/browser/* builds/apk/www/shell && \
     cp -r pwa-tools/updater-app/build/default builds/pwa && \
     mkdir builds/pwa/release-uuid && \
-    cp -r dist/tangerine-client builds/pwa/release-uuid/app
+    cp -r dist/tangerine-client/browser builds/pwa/release-uuid/app
 
 # Modify links to javascript modules because they won't work in an APK (Angular 8 work-around)
 RUN sed -i 's/type="module"/type="text\/javascript"/g' /tangerine/client/builds/apk/www/shell/index.html

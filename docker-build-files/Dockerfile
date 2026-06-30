@@ -2,6 +2,22 @@
 FROM tangerine/docker-tangerine-base-image:v4.0.0-rc-6
 #FROM --platform=linux/arm64 tangerine/docker-tangerine-base-image:v4.0.0-rc-6
 #FROM --platform=linux/amd64 tangerine/docker-tangerine-base-image:v4.0.0-rc-6
+
+# Upgrade Node.js to v24 (base image ships with Node 18)
+ARG TARGETARCH
+RUN case "$TARGETARCH" in \
+      "amd64") ARCH="x64" ;; \
+      "arm64") ARCH="arm64" ;; \
+      *) echo "Unsupported architecture: $TARGETARCH"; exit 1 ;; \
+    esac && \
+    apt-get update && apt-get install -y curl xz-utils && \
+    curl -fsSL "https://nodejs.org/dist/v24.18.0/node-v24.18.0-linux-${ARCH}.tar.xz" -o /tmp/node.tar.xz && \
+    tar xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 && \
+    rm /tmp/node.tar.xz && \
+    apt-get remove -y curl xz-utils && \
+    apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 #FROM --platform=$BUILDPLATFORM tangerine/docker-tangerine-base-image:v4.0.0-rc-6
 #FROM --platform=linux/arm64 tangerine/docker-tangerine-base-image:local1
 ARG TARGETARCH
@@ -19,6 +35,7 @@ RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selectio
 # Install global node dependencies
 # set unsafe-perm true allows it to work on ARM Macs(M1)
 RUN npm config set unsafe-perm true
+RUN npm config set legacy-peer-deps true
 RUN npm install -g uuid couchdb-wedge
 RUN npm config set unsafe-perm false
 
@@ -121,10 +138,11 @@ RUN cd /tangerine/client/pwa-tools/updater-app && \
 
 # Package release sources for APK and PWA.
 RUN cd /tangerine/client && \
-    cp -r dist/tangerine-client builds/apk/www/shell && \
+    mkdir -p builds/apk/www/shell && \
+    cp -r dist/tangerine-client/browser/* builds/apk/www/shell && \
     cp -r pwa-tools/updater-app/build/default builds/pwa && \
     mkdir builds/pwa/release-uuid && \
-    cp -r dist/tangerine-client builds/pwa/release-uuid/app
+    cp -r dist/tangerine-client/browser builds/pwa/release-uuid/app
 
 # Modify links to javascript modules because they won't work in an APK (Angular 8 work-around)
 RUN sed -i 's/type="module"/type="text\/javascript"/g' /tangerine/client/builds/apk/www/shell/index.html

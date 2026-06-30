@@ -1,8 +1,14 @@
 .idea
 .git
 data
+data-groups
+state
+screenshots
+media
+trivy
 
-node_modules
+**/node_modules
+**/node_modules/**
 editor/node_modules
 online-survey-app/node_modules
 client/node_modules
